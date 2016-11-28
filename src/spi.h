@@ -1,8 +1,16 @@
 #ifndef SPI_H
 #define SPI_H
 
-unsigned long recievedData, tmpData;
-unsigned char * pData = &tmpData;
+struct SPI_Data {
+	unsigned char flag;
+	unsigned short temp;
+	unsigned short time;
+	unsigned short vol;
+} receivedData, tmpData;
+unsigned long dataSize = sizeof(struct SPI_Data);
+
+//unsigned long recievedData, tmpData;
+unsigned char * pData = (unsigned char *) &tmpData;
 unsigned char byte = 0;
 
 void SPI_MasterInit(void) {
@@ -10,8 +18,8 @@ void SPI_MasterInit(void) {
 	// Set SPCR register to enable SPO, enable master, and use SCK frequency
 	//    of fosc/16 (pg. 168)
 	/* Set MOSI and SCK output, all others input */
-	SPI_DDR = (1<<MOSI) | (1<<SCK);
-	SPI_PORT = ~((1<<MOSI) | (1<<SCK));
+	SPI_DDR = (SPI_DDR & 0x0F) | (1<<MOSI) | (1<<SCK);
+	SPI_PORT = (SPI_PORT & 0x0F) | ~((1<<MOSI) | (1<<SCK));
 	/* Enable SPI, Master, set clock rate fck/16 */
 	SPCR = (1<<SPE)|(1<<MSTR)|(1<<SPR0)|(1<<SPIE);
 	// Make sure global interrupts are enabled on SREG register (pg. 9)
@@ -20,8 +28,9 @@ void SPI_MasterInit(void) {
 
 void SPI_SlaveInit(void)
 {
-    SPI_DDR = (1<<MISO);
-    SPI_PORT = (1<<SPIE) | (1<<SPE) ;
+    SPI_DDR = (SPI_DDR & 0x0F) | (1<<MISO);
+	SPI_PORT = (SPI_PORT & 0x0F) | ~(1<<MISO);
+    SPCR = (1<<SPIE)|(1<<SPE) ;
     sei();
 }
 
@@ -37,18 +46,6 @@ unsigned char SPI_Transmit(unsigned char cData) {
 }
 
 /* Assumes slave select is dealt with elsewhere */
-unsigned short SPI_Transmit_Short(unsigned short sData) {
-	unsigned char cData;
-
-	cData = (unsigned char) (sData >> 8);
-	SPI_Transmit(cData);
-	cData = (unsigned char) (sData & 0x00FF);
-	SPI_Transmit(cData);
-
-	return sData;
-}
-
-/* Assumes slave select is dealt with elsewhere */
 unsigned long SPI_Transmit_Long(unsigned long lData) {
     unsigned char * cData;
 
@@ -60,28 +57,20 @@ unsigned long SPI_Transmit_Long(unsigned long lData) {
 	return lData;
 }
 
+/* */
+struct SPI_Data SPI_Transmit_Data(struct SPI_Data sendData) {
+	unsigned char i = 0;
+	unsigned char * cData = (unsigned char *) &sendData;
+
+	for (i = 0; i < sizeof(sendData); i++) {
+		SPI_Transmit(cData[i]);
+	}
+}
+
 unsigned char SPI_Receive(void)
 {
     while(!(SPSR & (1 << SPIF)));
     return SPDR;
-}
-
-unsigned short SPI_Recieve_Short(void) {
-	unsigned short sData;
-
-	sData = ((unsigned short) SPI_Receive()) << 8;
-	sData = sData + SPI_Receive();
-
-	return sData;
-}
-
-unsigned long SPI_Receive_Long(void) {
-	unsigned long lData;
-
-	lData = ((unsigned long) SPI_Receive_Short()) << 16;
-	lData = lData + SPI_Receive_Short();
-
-	return lData;
 }
 
 void SPI_handleReceivedData(void);
@@ -89,7 +78,8 @@ void SPI_handleReceivedData(void);
 ISR(SPI_STC_vect)
 {
     pData[byte] = SPI_Receive();
-    byte = (byte + 1) % 4;
+    //byte = (byte + 1) % 4; // for unsigned long data
+	byte = (byte + 1) % dataSize; // for struct data
 	if (byte == 0) {
 		receivedData = tmpData;
 		SPI_handleReceivedData();

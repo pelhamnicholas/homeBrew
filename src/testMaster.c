@@ -24,7 +24,9 @@
 
 #include "athai005_npelh001_spi.h"
 
-extern unsigned long receivedData;
+//extern unsigned long receivedData; // for unsigned long data
+extern struct SPI_Data receivedData; // for struct data
+struct SPI_Data sendData;
  
 unsigned short HLT_maxVol = 1000;        //volume of water in HLT
 unsigned short HLT_temp = 0;             //current temperature
@@ -63,9 +65,19 @@ void TMaster_Tick()
             if (~PINA & 0x01) {
                 /* send HEAT WATER to HLT */
                 PORTB = PORTB & 0xFE;
-                SPI_Transmit_Long(((unsigned long)1 << 16) | HLT_maxVol);
-                SPI_Transmit_Long(((unsigned long)2 << 16) | 0);
-                SPI_Transmit_Long(((unsigned long)3 << 16) | HLT_desiredTemp);
+
+				/* for long data */
+                //SPI_Transmit_Long(((unsigned long)1 << 16) | HLT_maxVol);
+                //SPI_Transmit_Long(((unsigned long)2 << 16) | 0);
+                //SPI_Transmit_Long(((unsigned long)3 << 16) | HLT_desiredTemp);
+
+				/* for struct data */
+				sendData.flag = 0;
+				sendData.temp = HLT_desiredTemp;
+				sendData.time = 0;
+				sendData.vol = HLT_maxVol;
+				SPI_Transmit_Data(sendData);
+
                 PORTB = (PORTB & 0xFE) | 0x01;
             } else if (~PINA & 0x02) {
                 /* send PERSIST HEAT WATER to HLT */
@@ -77,14 +89,22 @@ void TMaster_Tick()
             } else if (~PINA & 0x04) {
                 /* send START MASH to MT */
                 PORTB = PORTB & 0xFD;
+
+				/* for long data */
 				data[0] = 1;
 				data[1] = MT_mashTime;
                 SPI_Transmit_Long((unsigned long)(*data));
-				//PORTB |= 0x08;
 				data[0] = 3;
 				data[1] = MT_desiredTemp;
 				SPI_Transmit_Long((unsigned long)(*data));
-				//PORTB &= ~(0x08);
+
+				/* for struct data */
+				sendData.flag = 0;
+				sendData.temp = MT_desiredTemp;
+				sendData.time = MT_mashTime;
+				sendData.vol = 0;
+				SPI_Transmit_Data(sendData);
+
                 PORTB = (PORTB & 0xFD) | 0x02;
             } else if (~PINA & 0x08) {
                 /* send START BOIL to BK */

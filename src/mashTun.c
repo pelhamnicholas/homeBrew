@@ -26,7 +26,8 @@
 #include "athai005_npelh001_adc.h"
 #include "athai005_npelh001_spi.h"
 
-extern unsigned long receivedData;
+//extern unsigned long receivedData; // for long data
+extern struct SPI_Data receivedData; // for struct data
 
 signed short mashTime = 0;
 unsigned short temp = 0;             //current temperature
@@ -143,6 +144,7 @@ void stir_task() {
 /****************************** MASH TUN *********************************/
 
 void SPI_handleReceivedData(void) {
+	/* for long data *
 	unsigned short * sReceivedData = (unsigned short *) &receivedData;
 	switch(sReceivedData[0]) {
 		case 1:
@@ -157,6 +159,9 @@ void SPI_handleReceivedData(void) {
 			receivedData = 0;
 			break;
 	}
+	*/
+	mashTime = receivedData.time;
+	desiredTemp = receivedData.temp;
 }
 
 const unsigned char MASH_TUN_PERIOD = 100;
