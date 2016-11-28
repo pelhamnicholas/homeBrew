@@ -26,11 +26,11 @@
 
 extern unsigned long receivedData;
  
-unsigned short HLT_maxVol = 0;           //volume of water in HLT
+unsigned short HLT_maxVol = 1000;        //volume of water in HLT
 unsigned short HLT_temp = 0;             //current temperature
-unsigned short HLT_desiredTemp = 0;      //desired HLT temperature - 0x00F8
+unsigned short HLT_desiredTemp = 0x00F8; //desired HLT temperature - 0x00F8
 
-unsigned short MT_mashTime = 10000;
+unsigned short MT_mashTime = 1000;
 unsigned short MT_temp = 0;              //current temperature
 unsigned short MT_desiredTemp = 0x00F8;  //desired HLT temperature - 0x00F8
 
@@ -39,47 +39,60 @@ unsigned short BK_boilTime = 0;          //time to keep at boil
 unsigned short BK_temp = 0;              //current temperature
 unsigned short BK_desiredTemp = 0x00F8;  //desired BK temperature - 0x00F8
 
+void SPI_handleReceivedData(void) {
+	return;
+}
+
 /******************************* TMASTER TASK *******************************/
 enum TMasterState { INIT, GET_INPUT } TMaster_state;
 
 void TMaster_Init(){
-    TMaster_states = D_INIT;
+    TMaster_state = INIT;
 }
 
 void TMaster_Tick()
 {
+	unsigned short data[2];
     /* actions */
     switch(TMaster_state){
         case INIT:
+			//PORTB = PORTB | 0x07;
             break;
         case GET_INPUT:
+			//PORTB = PORTB | 0x07;
             if (~PINA & 0x01) {
                 /* send HEAT WATER to HLT */
-                PORTB = (PORTB & 0xF0) | 0x01;
-                SPI_Transmit_Long((1 << 16) + HLT_maxVol);
-                SPI_Transmit_Long(2 << 16);
-                SPI_Transmit_Long((3 << 16) + HLT_desiredTemp);
-                PORTB = PORTB & 0xF0;
+                PORTB = PORTB & 0xFE;
+                SPI_Transmit_Long(((unsigned long)1 << 16) | HLT_maxVol);
+                SPI_Transmit_Long(((unsigned long)2 << 16) | 0);
+                SPI_Transmit_Long(((unsigned long)3 << 16) | HLT_desiredTemp);
+                PORTB = (PORTB & 0xFE) | 0x01;
             } else if (~PINA & 0x02) {
                 /* send PERSIST HEAT WATER to HLT */
-                PORTB = (PORTB & 0xF0) | 0x01;
-                SPI_Transmit_Long((1 << 16) + HLT_maxVol);
-                SPI_Transmit_Long((2 << 16) + 1);
-                SPI_Transmit_Long((3 << 16) + HLT_desiredTemp);
-                PORTB = PORTB & 0xF0;
+                PORTB = PORTB & 0xFE;
+                SPI_Transmit_Long(((unsigned long)1 << 16) | HLT_maxVol);
+                SPI_Transmit_Long(((unsigned long)2 << 16) | 1);
+                SPI_Transmit_Long(((unsigned long)3 << 16) | HLT_desiredTemp);
+                PORTB = (PORTB & 0xFE) | 0x01;
             } else if (~PINA & 0x04) {
                 /* send START MASH to MT */
-                PORTB = (PORTB & 0xF0) | 0x02;
-                SPI_Transmit_Long((1 << 16) + MT_mashTime);
-                SPI_Transmit_Long((3 << 16) + MT_desiredTemp);
-                PORTB = PORTB & 0xF0;
+                PORTB = PORTB & 0xFD;
+				data[0] = 1;
+				data[1] = MT_mashTime;
+                SPI_Transmit_Long((unsigned long)(*data));
+				//PORTB |= 0x08;
+				data[0] = 3;
+				data[1] = MT_desiredTemp;
+				SPI_Transmit_Long((unsigned long)(*data));
+				//PORTB &= ~(0x08);
+                PORTB = (PORTB & 0xFD) | 0x02;
             } else if (~PINA & 0x08) {
                 /* send START BOIL to BK */
-                PORTB = (PORTB & 0xF0) | 0x04;
-                SPI_Transmit_Long((1 << 16) + BK_maxVol);
-                SPI_Transmit_Long((2 << 16) + BK_boilTime);
-                SPI_Transmit_Long((3 << 16) + BK_desiredTemp);
-                PORTB = PORTB & 0xF0;
+                PORTB = PORTB & 0xFB;
+                SPI_Transmit_Long(((unsigned long)1 << 16) | BK_maxVol);
+                SPI_Transmit_Long(((unsigned long)2 << 16) | BK_boilTime);
+                SPI_Transmit_Long(((unsigned long)3 << 16) | BK_desiredTemp);
+                PORTB = (PORTB & 0xFB) | 0x04;
             }
             break;
         default:

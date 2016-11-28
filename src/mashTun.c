@@ -142,6 +142,23 @@ void stir_task() {
 
 /****************************** MASH TUN *********************************/
 
+void SPI_handleReceivedData(void) {
+	unsigned short * sReceivedData = (unsigned short *) &receivedData;
+	switch(sReceivedData[0]) {
+		case 1:
+		    mashTime = (signed short) sReceivedData[1];
+			receivedData = 0;
+			break;
+		case 3:
+			desiredTemp = (unsigned short) sReceivedData[1];
+			receivedData = 0;
+			break;
+		default:
+			receivedData = 0;
+			break;
+	}
+}
+
 const unsigned char MASH_TUN_PERIOD = 100;
 
 enum mashTunState { WAIT, FILL, AT_TEMP, BELOW_TEMP, FINISHED } mashTun_state;
@@ -154,19 +171,6 @@ void mashTun_tick() {
     switch(mashTun_state) {
         case WAIT:
             temp = ADC_read(0);
-            switch(receivedData >> 16) {
-                case 1:
-                    mashTime = (signed short) (receivedData & 0x0000FFFF);
-                    receivedData = 0;
-                    break;
-                case 3:
-                    desiredTemp = (unsigned short) (receivedData & 0x0000FFFF);
-                    receivedData = 0;
-                    break;
-                default:
-                    receivedData = 0;
-                    break;
-            }
             break;
         case FILL:
             temp = ADC_read(0);
@@ -193,7 +197,7 @@ void mashTun_tick() {
 
     switch(mashTun_state) {
         case WAIT:
-            if (mashTime > 0) {
+            if (desiredTemp > 0 && mashTime > 0) {
                 mashTun_state = FILL;
             }
             break;
@@ -218,6 +222,7 @@ void mashTun_tick() {
             break;
         case FINISHED:
             /* Nothing */
+            desiredTemp = 0;
             mashTun_state = WAIT;
             break;
         default:
@@ -373,10 +378,11 @@ void TEST_Tick()
 
         case get_input:
             //PORTD = (adctemp & 0x0300) >> 2;
-            if ( (~(PIND) & 0x03) == 0x01) {
+            if ( (~(PINA) & 0x08)) {
                 mashTime = 10000;
                 desiredTemp = 0x00FD;
             }
+            PORTD = (char) (desiredTemp & 0x00FF);
             break; 
 
         default:
@@ -424,16 +430,15 @@ int main(void)
     //DDR:  0x00 = input, 0xFF = output
     //PORT: 0xFF = input, 0x00 = output
     DDRA = 0x00; PORTA = 0xFF;
-    DDRB = 0xFF; PORTB = 0x00;
+    DDRB = 0x0F; PORTB = 0xF0;
     DDRC = 0xFF; PORTB = 0x00;
-    DDRD = 0x00; PORTD = 0xFF;
+    DDRD = 0xFF; PORTD = 0x00;
     //Start Tasks
     StartSecPulse(1);
     //init ADC
     ADC_init();
     Set_A2D_Pin(0);
-    /* SPI Init */
-    SPI_SlaveInit();
+	SPI_SlaveInit();
     //RunSchedular
     vTaskStartScheduler();
     
