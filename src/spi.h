@@ -1,10 +1,20 @@
 #ifndef SPI_H
 #define SPI_H
 
-struct SPI_Data {
+#define SPI_DDR 	DDRB
+#define SPI_PORT	PORTB
+#define SS 			4
+#define MOSI 		5
+#define MISO 		6
+#define SCK 		7
+
+#define F_CPU 1000000UL
+#include <util/delay.h>
+
+typedef struct SPI_Data {
 	unsigned char flag;
 	unsigned short temp;
-	unsigned short time;
+	signed short time;
 	unsigned short vol;
 } receivedData, tmpData;
 unsigned long dataSize = sizeof(struct SPI_Data);
@@ -21,7 +31,7 @@ void SPI_MasterInit(void) {
 	SPI_DDR = (SPI_DDR & 0x0F) | (1<<MOSI) | (1<<SCK);
 	SPI_PORT = (SPI_PORT & 0x0F) | ~((1<<MOSI) | (1<<SCK));
 	/* Enable SPI, Master, set clock rate fck/16 */
-	SPCR = (1<<SPE)|(1<<MSTR)|(1<<SPR0)|(1<<SPIE);
+	SPCR = (1<<SPE)|(1<<MSTR)|(1<<SPR0);//|(1<<SPIE);
 	// Make sure global interrupts are enabled on SREG register (pg. 9)
 	sei();
 }
@@ -64,6 +74,7 @@ struct SPI_Data SPI_Transmit_Data(struct SPI_Data sendData) {
 
 	for (i = 0; i < sizeof(sendData); i++) {
 		SPI_Transmit(cData[i]);
+		_delay_ms(100);
 	}
 }
 
@@ -77,9 +88,9 @@ void SPI_handleReceivedData(void);
 
 ISR(SPI_STC_vect)
 {
-    pData[byte] = SPI_Receive();
+    pData[byte] = SPDR;
     //byte = (byte + 1) % 4; // for unsigned long data
-	byte = (byte + 1) % dataSize; // for struct data
+	byte = (byte + 1) % sizeof(sendData); // for struct data
 	if (byte == 0) {
 		receivedData = tmpData;
 		SPI_handleReceivedData();

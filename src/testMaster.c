@@ -22,7 +22,7 @@
 #include "task.h"
 #include "croutine.h"
 
-#include "athai005_npelh001_spi.h"
+#include "spi.h"
 
 //extern unsigned long receivedData; // for unsigned long data
 extern struct SPI_Data receivedData; // for struct data
@@ -66,11 +66,6 @@ void TMaster_Tick()
                 /* send HEAT WATER to HLT */
                 PORTB = PORTB & 0xFE;
 
-				/* for long data */
-                //SPI_Transmit_Long(((unsigned long)1 << 16) | HLT_maxVol);
-                //SPI_Transmit_Long(((unsigned long)2 << 16) | 0);
-                //SPI_Transmit_Long(((unsigned long)3 << 16) | HLT_desiredTemp);
-
 				/* for struct data */
 				sendData.flag = 0;
 				sendData.temp = HLT_desiredTemp;
@@ -82,21 +77,18 @@ void TMaster_Tick()
             } else if (~PINA & 0x02) {
                 /* send PERSIST HEAT WATER to HLT */
                 PORTB = PORTB & 0xFE;
-                SPI_Transmit_Long(((unsigned long)1 << 16) | HLT_maxVol);
-                SPI_Transmit_Long(((unsigned long)2 << 16) | 1);
-                SPI_Transmit_Long(((unsigned long)3 << 16) | HLT_desiredTemp);
+
+				/* for struct data */
+				sendData.flag = 1;
+				sendData.temp = HLT_desiredTemp;
+				sendData.time = 0;
+				sendData.vol = HLT_maxVol;
+				SPI_Transmit_Data(sendData);
+
                 PORTB = (PORTB & 0xFE) | 0x01;
             } else if (~PINA & 0x04) {
                 /* send START MASH to MT */
                 PORTB = PORTB & 0xFD;
-
-				/* for long data */
-				data[0] = 1;
-				data[1] = MT_mashTime;
-                SPI_Transmit_Long((unsigned long)(*data));
-				data[0] = 3;
-				data[1] = MT_desiredTemp;
-				SPI_Transmit_Long((unsigned long)(*data));
 
 				/* for struct data */
 				sendData.flag = 0;
@@ -109,9 +101,14 @@ void TMaster_Tick()
             } else if (~PINA & 0x08) {
                 /* send START BOIL to BK */
                 PORTB = PORTB & 0xFB;
-                SPI_Transmit_Long(((unsigned long)1 << 16) | BK_maxVol);
-                SPI_Transmit_Long(((unsigned long)2 << 16) | BK_boilTime);
-                SPI_Transmit_Long(((unsigned long)3 << 16) | BK_desiredTemp);
+
+				/* for struct data */
+				sendData.flag = 0;
+				sendData.temp = BK_desiredTemp;
+				sendData.time = BK_boilTime;
+				sendData.vol = BK_maxVol;
+				SPI_Transmit_Data(sendData);
+
                 PORTB = (PORTB & 0xFB) | 0x04;
             }
             break;

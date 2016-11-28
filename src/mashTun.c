@@ -23,8 +23,8 @@
 #include "croutine.h"
 
 //ADC header file
-#include "athai005_npelh001_adc.h"
-#include "athai005_npelh001_spi.h"
+#include "adc.h"
+#include "spi.h"
 
 //extern unsigned long receivedData; // for long data
 extern struct SPI_Data receivedData; // for struct data
@@ -144,22 +144,6 @@ void stir_task() {
 /****************************** MASH TUN *********************************/
 
 void SPI_handleReceivedData(void) {
-	/* for long data *
-	unsigned short * sReceivedData = (unsigned short *) &receivedData;
-	switch(sReceivedData[0]) {
-		case 1:
-		    mashTime = (signed short) sReceivedData[1];
-			receivedData = 0;
-			break;
-		case 3:
-			desiredTemp = (unsigned short) sReceivedData[1];
-			receivedData = 0;
-			break;
-		default:
-			receivedData = 0;
-			break;
-	}
-	*/
 	mashTime = receivedData.time;
 	desiredTemp = receivedData.temp;
 }
@@ -176,9 +160,11 @@ void mashTun_tick() {
     switch(mashTun_state) {
         case WAIT:
             temp = ADC_read(0);
+			PORTB = PORTB & 0xFE;
             break;
         case FILL:
             temp = ADC_read(0);
+			PORTB = PORTB & 0xFE;
             break;
         case AT_TEMP:
             temp = ADC_read(0);
