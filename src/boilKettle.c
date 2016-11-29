@@ -38,7 +38,7 @@ unsigned short boilTime = 0;
 unsigned char heater = 0;             //heater flag: 0 = off, 1 = on
 
 /* state order is standardized for SPI communication protocols */
-enum BKState { INIT, WAIT, FILL, BELOW_TEMP, AT_TEMP, FINISHED, COOL } BK_state;
+enum BKState { INIT, WAIT, FILL, BELOW_TEMP, AT_TEMP, COOL, FINISHED } BK_state;
 
 void BK_Init(){
     BK_state = INIT;

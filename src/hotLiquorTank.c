@@ -39,7 +39,7 @@ unsigned short persist = 0;           // 0 = heat, 1 = heat_persist
 unsigned char heater = 0;             //heater flag: 0 = off, 1 = on
 
 /* state order is standardized for SPI communication protocols */
-enum HLTState { INIT, WAIT, FILL, BELOW_TEMP, AT_TEMP, FINISHED } hlt_state;
+enum HLTState { INIT, WAIT, FILL, BELOW_TEMP, AT_TEMP, COOL, FINISHED } hlt_state;
 
 void HLT_Init(){
     hlt_state = init;

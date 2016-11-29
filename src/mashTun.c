@@ -97,7 +97,7 @@ void fill_task() {
 
 /****************************** STIRRER *********************************/
 
-enum stirState {OFF, ON} stir_state;
+enum stirState { OFF, ON } stir_state;
 
 void stir_init() {
     stir_state = OFF;
@@ -146,7 +146,7 @@ void stir_task() {
 
 const unsigned char MASH_TUN_PERIOD = 100;
 
-enum mashTunState { INIT, WAIT, FILL, BELOW_TEMP, AT_TEMP, FINISHED } mashTun_state;
+enum mashTunState { INIT, WAIT, FILL, BELOW_TEMP, AT_TEMP, COOL, FINISHED } mashTun_state;
 
 void mashTun_init() {
     mashTun_state = WAIT;
