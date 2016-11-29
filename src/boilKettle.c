@@ -16,6 +16,7 @@
 #include <avr/eeprom.h>
 #include <avr/portpins.h>
 #include <avr/pgmspace.h>
+#include <avr/sleep.h>
 
 //FreeRTOS include files
 #include "FreeRTOS.h"
@@ -23,124 +24,125 @@
 #include "croutine.h"
 
 //ADC header file
-#include "athai005_npelh001_adc.h"
-#include "athai005_npelh001_spi.h"
+#include "adc.h"
+#include "spi.h"
 
-extern unsigned long receivedData;
+extern struct SPI_Data receivedData;
 
 /******************************* BK TASK *******************************/
-unsigned char volume = 0;             //volume of water in BK
-unsigned short maxVol = 1;            //maxvolume of BK
+unsigned short vol= 0;                //volume of water in BK
+unsigned short maxVol = 0;            //maxvolume of BK
 unsigned short temp = 0;              //current temperature
 unsigned short desiredtemp = 0x00F8;  //desired BK temperature - 0x00F8
-unsigned short boilTime = 0x00;
+unsigned short boilTime = 0;
+unsigned char heater = 0;             //heater flag: 0 = off, 1 = on
 
-enum BKState {init, wait, fill, heat, cool, finish} BK_state;
+/* state order is standardized for SPI communication protocols */
+enum BKState { INIT, WAIT, FILL, BELOW_TEMP, AT_TEMP, FINISHED, COOL } BK_state;
 
 void BK_Init(){
-    BK_state = init;
+    BK_state = INIT;
 }
 
 void BK_Tick(){
     //Actions
     switch(BK_state){
-        case init:
+        case INIT:
+            heater = 0;
+            maxVol = 0;
+            desiredTemp = 0;
+            boilTime = 0;
             break;
 
-        case wait:
+        case WAIT:
             temp = ADC_read(0);
-            switch(receivedData >> 16) {
-                case 1:
-                    maxVol = (unsigned short) (receivedData & 0x0000FFFF);
-                    receivedData = 0;
-                    break;
-                case 2:
-                    boilTime = (unsigned short) (receivedData & 0x0000FFFF);
-                    receivedData = 0;
-                    break;
-                case 3:
-                    desiredTemp = (unsigned short) (receivedData & 0x0000FFFF);
-                    receivedData = 0;
-                    break;
-                default:
-                    receivedData = 0;
-                    break;
+            heater = 0;
+            // TODO: fill in sleep mode and conditional
+            set_sleep_mode(...);
+            cli();
+            if (...) {
+                sleep_enable();
+                sei();
+                sleep_cpu();
+                sleep_disable();
             }
+            sei();
             break;
 
-        case fill:
-            PORTB = 0x02;
-            BKtemp = ADC_read(0);
-            BKvolume++;
+        case FILL:
+            temp = ADC_read(0);
+            heater = 0;
+            vol++;
             break;
 
-        case heat:
-            if (BKtemp >= BKdesiredtemp) {
-                PORTB = 0x00;
-            } else {
-                PORTB = 0x01;
-            }
-            Boiltime--;
+        case BELOW_TEMP:
             BKtemp = ADC_read(0);
+            heater = 1;
+            boilTime = boilTime - BK_PERIOD;
             break;
 
-        case cool:
-            PORTB = 0x00;
-            PORTC = 0x01;
-            BKtemp = ADC_read(0);
+        case AT_TEMP:
+            temp = ADC_read(0);
+            heater = 0;
+            boilTime = boilTime - BK_PERIOD;
+            break;
+
+        case COOL:
+            temp = ADC_read(0);
+            heater = 0;
+            /* send signal to cool */
             break; 
            
-        case finish:
-        //signal back to LCD screen to say it's done
+        case FINISHED:
+            temp = ADC_read(0);
+            heater = 0;
+            /* send signal finished */
             break;
 
         default:
-            PORTA = 0;
+            heater = 0;
             break;
     }
     
     //Transitions
     switch(BK_state){
-        case init: 
-            BK_state = wait; 
+        case INIT: 
+            BK_state = WAIT; 
             break;
 
-        case wait:
-            if (desiredTemp > 0) BK_state = fill; 
+        case WAIT:
+            if (desiredTemp > 0 $$ boilTime > 0) {
+                BK_state = FILL; 
+            }
             break;
 
-        case fill:
-            if (volume >= maxVol)
-            {
-                PORTB = 0x00;
-                boilTime = 150;
-                BK_state = heat;
+        case FILL:
+            if (vol >= maxVol) {
+                BK_state = HEAT;
             } 
             break;
 
-        case heat:
-            if (boilTime == 0) 
-            {
-                volume = 0;
-                PORTB = 0;
-                desiredTemp = 0x005A;
-                BK_state = cool;
+        case BELOW_TEMP:
+            if (boilTime <= 0) {
+                BK_state = COOL;
             }
             break;
 
-        case cool:
-            if (temp <= desiredTemp)
-            {
-                volume = 0;
-                PORTC = 0;
-                desiredTemp = 0;
-                BK_state = finish;
+        case AT_TEMP:
+            if (boilTime <= 0) {
+                BK_state = COOL;
+            }
+            break;
+
+        case COOL:
+            if (temp <= desiredTemp) {
+                BK_state = FINISH;
             }
             break;
             
-        case finish:
-            //signal from LCD screen sends back to wait
-            BK_state = wait;
+        case FINISHED:
+            /* stay in finish until signaled? */
+            BK_state = WAIT;
             break;
 
         default:
@@ -156,6 +158,22 @@ void BK_Task()
     {
         BK_Tick();
         vTaskDelay(100);
+    }
+}
+
+void handleReceivedData(void) {
+    struct SPI_Data sendData;
+
+    if (receivedData.flag == 0xFF) {
+        /* pinged for data */
+        sendData.flag = BK_state;
+        sendData.time = boilTime;
+        sendData.temp = temp;
+        sendData.vol = vol;
+        SPI_Transmit_Data(sendData);
+    } else {
+        mashTime = receivedData.time;
+        desiredTemp = receivedData.temp;
     }
 }
 
@@ -179,6 +197,7 @@ int main(void)
     //init ADC
     ADC_init();
     Set_A2D_Pin(0);
+    SPI_SlaveInit();
     //RunSchedular
     vTaskStartScheduler();
     

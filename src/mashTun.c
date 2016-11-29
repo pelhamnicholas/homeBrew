@@ -16,6 +16,7 @@
 #include <avr/eeprom.h>
 #include <avr/portpins.h>
 #include <avr/pgmspace.h>
+#include <avr/sleep.h>
 
 //FreeRTOS include files
 #include "FreeRTOS.h"
@@ -143,14 +144,9 @@ void stir_task() {
 
 /****************************** MASH TUN *********************************/
 
-void SPI_handleReceivedData(void) {
-	mashTime = receivedData.time;
-	desiredTemp = receivedData.temp;
-}
-
 const unsigned char MASH_TUN_PERIOD = 100;
 
-enum mashTunState { WAIT, FILL, AT_TEMP, BELOW_TEMP, FINISHED } mashTun_state;
+enum mashTunState { INIT, WAIT, FILL, BELOW_TEMP, AT_TEMP, FINISHED } mashTun_state;
 
 void mashTun_init() {
     mashTun_state = WAIT;
@@ -160,7 +156,16 @@ void mashTun_tick() {
     switch(mashTun_state) {
         case WAIT:
             temp = ADC_read(0);
-			PORTB = PORTB & 0xFE;
+			//PORTB = PORTB & 0xFE;
+            set_sleep_mode();
+            cli();
+            if ( ... ) {
+                sleep_enable();
+                sei();
+                sleep_cpu();
+                sleep_disable();
+            }
+            sei();
             break;
         case FILL:
             temp = ADC_read(0);
@@ -212,7 +217,7 @@ void mashTun_tick() {
             }
             break;
         case FINISHED:
-            /* Nothing */
+            /* wait for ping to move from finished? */
             desiredTemp = 0;
             mashTun_state = WAIT;
             break;
@@ -284,6 +289,7 @@ void Motor_Tick(){
         PORTC = 0;
         break;
     }
+
     //Transitions
     switch(motor_state){
         case INIT:
@@ -405,6 +411,22 @@ void TESTtask()
 }
 
 /******************************* TEST TASK *******************************/
+
+void SPI_handleReceivedData(void) {
+    struct SPI_Data sendData;
+
+    if (receivedData.flag == 0xFF) {
+        /* pinged for data */
+        sendData.flag = mashTun_state;
+        sendData.time = mashTime;
+        sendData.temp = temp;
+        sendData.vol = 0;
+        SPI_Transmit_Data(sendData);
+    } else {
+        mashTime = receivedData.time;
+        desiredTemp = receivedData.temp;
+    }
+}
 
 void StartSecPulse(unsigned portBASE_TYPE Priority)
 {

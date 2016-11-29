@@ -11,7 +11,7 @@
 #define F_CPU 1000000UL
 #include <util/delay.h>
 
-typedef struct SPI_Data {
+struct SPI_Data {
 	unsigned char flag;
 	unsigned short temp;
 	signed short time;
@@ -68,7 +68,7 @@ unsigned long SPI_Transmit_Long(unsigned long lData) {
 }
 
 /* */
-struct SPI_Data SPI_Transmit_Data(struct SPI_Data sendData) {
+void SPI_Transmit_Data(struct SPI_Data sendData) {
 	unsigned char i = 0;
 	unsigned char * cData = (unsigned char *) &sendData;
 
@@ -90,7 +90,7 @@ ISR(SPI_STC_vect)
 {
     pData[byte] = SPDR;
     //byte = (byte + 1) % 4; // for unsigned long data
-	byte = (byte + 1) % sizeof(sendData); // for struct data
+	byte = (byte + 1) % sizeof(struct SPI_Data); // for struct data
 	if (byte == 0) {
 		receivedData = tmpData;
 		SPI_handleReceivedData();
