@@ -1,0 +1,34 @@
+% Author: Alvin Thai
+%         Nicholas Pelham
+% Source: CS122A Project
+
+\documentclass{standalone}
+
+\usepackage{pgf}
+\usepackage{tikz}
+\usetikzlibrary{arrows, automata, positioning}
+\usepackage[latin1]{inputenc}
+
+\begin{document}
+
+\begin{tikzpicture}[->, >=stealth', shorten >=1pt, auto, node distance=2.8cm,
+                    semithick, draw=blue]
+  \tikzstyle{every state}=[fill=yellow, draw=blue, text=blue]
+
+  \node[initial,state] (A) [fill=lightgray, draw=black, text=black] {$wait$};
+  \node[state]         (B) [right =3.5cm of A]                      {$Fill$};
+  \node[state]         (C) [below =1.5cm of B]                      {$BelowTemp$};
+  \node[state]         (D) [below =2cm of C]                        {$AtTemp$};
+  \node[state]         (E) [below =4cm of A]                        {$Finished$};
+
+  \path 
+        (A) edge [draw=blue]                   node [above]{\texttt{desiredTemp > 0}}(B)
+        (B) edge [draw=blue]                   node [below, pos=0.4]{\texttt{~vol $\geq$ maxVol}}(C)
+        (C) edge [draw=blue, bend left]        node [below, pos=0.2]{\texttt{temp $\geq$ desiredTemp~~~}} (D)
+        (D) edge [draw=blue, bend left]        node [above, pos=0.2]{\texttt{temp $<$ desiredTemp~~~~}} (C)
+        (C) edge [draw=blue]                   node [sloped, above]{\texttt{!persist}} (E)
+        (D) edge [draw=blue]                   node [sloped, below]{\texttt{!persist}} (E)
+        (E) edge [draw=blue]                   node [left]{\texttt{1}} (A);
+\end{tikzpicture}
+
+\end{document}
