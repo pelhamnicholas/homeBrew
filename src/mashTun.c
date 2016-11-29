@@ -157,14 +157,14 @@ void mashTun_tick() {
         case WAIT:
             temp = ADC_read(0);
 			//PORTB = PORTB & 0xFE;
-            set_sleep_mode();
+            set_sleep_mode(SLEEP_MODE_PWR_SAVE);
             cli();
-            if ( ... ) {
+            // if ( ... ) {
                 sleep_enable();
                 sei();
                 sleep_cpu();
                 sleep_disable();
-            }
+            // }
             sei();
             break;
         case FILL:

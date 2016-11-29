@@ -58,14 +58,14 @@ void BK_Tick(){
             temp = ADC_read(0);
             heater = 0;
             // TODO: fill in sleep mode and conditional
-            set_sleep_mode(...);
+            set_sleep_mode(SLEEP_MODE_PWR_SAVE);
             cli();
-            if (...) {
+            //  if (...) {
                 sleep_enable();
                 sei();
                 sleep_cpu();
                 sleep_disable();
-            }
+            // }
             sei();
             break;
 
