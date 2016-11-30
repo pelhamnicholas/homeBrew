@@ -146,7 +146,7 @@ void start_BK(void) {
     return;
 }
 
-void pingSlave(void) {
+void pollSlave(void) {
     struct SPI_Data sendData;
 
     sendData.flag = 0xFF;
@@ -156,6 +156,69 @@ void pingSlave(void) {
 
     return;
 }
+
+/***************************** POLLING TASK ******************************/
+enum pollingState { START, POLL_HLT, POLL_MT, POLL_BK } polling_state;
+
+void Polling_Init() {
+    polling_state == START;
+}
+
+void Polling_Tick() {
+    switch(polling_state) {
+        case START:
+            slave = NONE;
+            break;
+        case POLL_HLT:
+            deselectSlave(slave);
+            slave = HLT;
+            selectSlave(slave);
+            pollSlave();
+            break;
+        case POLL_MT:
+            deselectSlave(slave);
+            slave = MT;
+            selectSlave(slave);
+            pollSlave();
+            break;
+        case POLL_BK:
+            deselectSlave(slave);
+            slave = BK;
+            selectSlave(slave);
+            pollSlave();
+            break;
+        default:
+            break;
+    }
+
+    switch(polling_state) {
+        case START:
+            polling_state = POLL_HLT;
+            break;
+        case POLL_HLT:
+            polling_state = POLL_MT;
+            break;
+        case POLL_MT:
+            polling_state = POLL_BK;
+            break;
+        case POLL_BK:
+            polling_state = POLL_HLT;
+            break;
+        default:
+            polling_state =START;
+            break;
+    }
+}
+
+void Polling_Task() {
+    Polling_Init();
+    for(;;)
+    {
+        Polling_Tick();
+        vTaskDelay(100);
+    }
+}
+/***************************** POLLING TASK ******************************/
 
 /***************************** HLT_FILL TASK *****************************/
 enum hltFillState { WAITING, FILLING } hlt_fill_state;
