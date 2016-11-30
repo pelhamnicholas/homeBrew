@@ -32,12 +32,12 @@ unsigned short HLT_maxVol = 1000;        //volume of water in HLT
 unsigned short HLT_temp = 0;             //current temperature
 unsigned short HLT_desiredTemp = 0x00F8; //desired HLT temperature - 0x00F8
 
-unsigned short MT_mashTime = 1000;
+unsigned short MT_mashTime = 10000;
 unsigned short MT_temp = 0;              //current temperature
 unsigned short MT_desiredTemp = 0x00F8;  //desired HLT temperature - 0x00F8
 
 unsigned short BK_maxVol = 1;            //maxvolume of BK
-unsigned short BK_boilTime = 3000;          //time to keep at boil
+unsigned short BK_boilTime = 10000;          //time to keep at boil
 unsigned short BK_temp = 0;              //current temperature
 unsigned short BK_desiredTemp = 0x00F8;  //desired BK temperature - 0x00F8
 unsigned short BK_desiredTempLow = 0x0028;	 //desired low BK temperature 0x0028
