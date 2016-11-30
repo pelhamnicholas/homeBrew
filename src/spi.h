@@ -18,7 +18,7 @@
 /* Temp in Fahrenheit */
 #define MAXTEMP 300
 #define MINTEMP 0
-#define TEMP(A) (A * (MAXTEMP - MINTEMP) + MINTEMP)
+#define TEMP(A) ( ( A * ( ( MAXTEMP - MINTEMP ) ) / 1024) + MINTEMP )
 
 /* This is more accurate but requires floating point arithmetic
    If the thermistors were available a look up table would be more appropriate
