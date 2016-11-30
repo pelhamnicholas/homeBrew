@@ -53,7 +53,7 @@ void BK_Tick(){
             heater = 0;
             maxVol = 0;
             desiredTempHigh = 0;
-			desiredTempLow = 0;
+            desiredTempLow = 0;
             boilTime = 0;
             break;
 
@@ -98,8 +98,8 @@ void BK_Tick(){
         case FINISHED:
             BKtemp = ADC_read(0);
             heater = 0;
-			PORTC = 0;
-			PORTD = 0x80;
+            PORTC = 0;
+            PORTD = 0x80;
             /* send signal finished */
             break;
 
@@ -130,8 +130,8 @@ void BK_Tick(){
             if (boilTime <= 0) {
                 BK_state = COOL;
             } 
-			else if (BKtemp >= desiredTempHigh) {
-				BK_state = AT_TEMP;
+            else if (BKtemp >= desiredTempHigh) {
+                BK_state = AT_TEMP;
             }
             break;
 
@@ -139,9 +139,9 @@ void BK_Tick(){
             if (boilTime <= 0) {
                 BK_state = COOL;
             }
-			else if (BKtemp < desiredTempHigh) {
-				BK_state = BELOW_TEMP;
-			} 
+            else if (BKtemp < desiredTempHigh) {
+                BK_state = BELOW_TEMP;
+            } 
             break;
 
         case COOL:
@@ -176,42 +176,42 @@ enum inputStates {input} input_state;
 
 void Input_Init()
 {
-	input_state = input;
+    input_state = input;
 }
 
 void Input_Tick()
 {
-	//actions
-	switch(input_state) {
-		case input:
-			if (~PINA & 0x02) {
-				volume = FULL; 
-			}
-			else {
-				volume = EMPTY;
-			}
-			break;
-		default:
-			break;
-	}
-	//transitions
-	switch(input_state) {
-		case input:
-			break;
-		default:
-			input_state = input;
-			break;
-	}
+    //actions
+    switch(input_state) {
+        case input:
+            if (~PINA & 0x02) {
+                volume = FULL; 
+            }
+            else {
+                volume = EMPTY;
+            }
+            break;
+        default:
+            break;
+    }
+    //transitions
+    switch(input_state) {
+        case input:
+            break;
+        default:
+            input_state = input;
+            break;
+    }
 }
 
 void Input_Task()
 {
-	Input_Init();
-	for(;;)
-	{
-		Input_Tick();
-		vTaskDelay(BK_PERIOD);
-	}
+    Input_Init();
+    for(;;)
+    {
+        Input_Tick();
+        vTaskDelay(BK_PERIOD);
+    }
 }
 /******************************* INPUT TASK *******************************/
 
@@ -227,9 +227,9 @@ void Output_Tick()
 {
     //actions
     switch (output_state){
-		case output_init:
-			PORTB = 0x00;
-			break;
+        case output_init:
+            PORTB = 0x00;
+            break;
         case output:
             if (volume == FULL) {
                 PORTB = PORTB | 0x02;
@@ -242,20 +242,20 @@ void Output_Tick()
             }
             else {
                 PORTB = PORTB & 0xFE;
-				PORTC = 0;
+                PORTC = 0;
             }
-			//TODO: disable heater when volume is empty         
-			PORTC = BKtemp;   
-			//PORTD = (BKtemp & 0x0300) >> 2;
+            //TODO: disable heater when volume is empty         
+            PORTC = desiredTempHigh;   
+            //PORTD = (BKtemp & 0x0300) >> 2;
             break;
         default:
             break;
     }
     //transitions
     switch (output_state) {
-		case output_init:
-			output_state = output;
-			break; 
+        case output_init:
+            output_state = output;
+            break; 
         case output:
             break;
         default:
@@ -283,20 +283,20 @@ void SPI_handleReceivedData(void) {
         sendData.time = boilTime;
         sendData.temp = BKtemp;
         sendData.vol = volume;
-        SPI_Transmit_Data(sendData);
+        //SPI_Transmit_Data(sendData);
     } else {
         boilTime = receivedData.time;
         desiredTempHigh = receivedData.temp;
-		desiredTempLow = receivedData.vol;
-		
+        desiredTempLow = receivedData.vol;
+        
     }
 }
 
 void StartSecPulse(unsigned portBASE_TYPE Priority)
 {
     xTaskCreate(BK_Task, (signed portCHAR *)"BK_Task", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
-	xTaskCreate(Output_Task, (signed portCHAR *)"Output_Task", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
-	xTaskCreate(Input_Task, (signed portCHAR *)"Input_Task", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
+    xTaskCreate(Output_Task, (signed portCHAR *)"Output_Task", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
+    xTaskCreate(Input_Task, (signed portCHAR *)"Input_Task", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
 }
 
 int main(void)

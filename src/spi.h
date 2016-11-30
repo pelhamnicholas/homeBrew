@@ -21,7 +21,10 @@ struct SPI_Data {
 	signed short time;
 	unsigned char vol; // 0 if empty, 1 if not empty, 2 if full
 	unsigned char unused; // stores the last byte of data sent by the master
-} receivedData, tmpData, sendData;
+}; 
+struct SPI_Data receivedData;
+struct SPI_Data tmpData;
+struct SPI_Data sendData;
 
 unsigned char * pData = (unsigned char *) &tmpData;
 unsigned char * pSendData = (unsigned char *) &sendData;

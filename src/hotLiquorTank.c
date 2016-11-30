@@ -29,6 +29,7 @@
 
 //extern unsigned long receivedData;
 extern struct SPI_Data receivedData;
+extern struct SPI_Data sendData;
 
 /******************************* HLT TASK *******************************/
 unsigned short volume = 0;            //volume of water in HLT
@@ -92,8 +93,8 @@ void HLT_Tick(){
 //            sendData.temp = temp;
 //            sendData.vol = volume;
 //            SPI_Transmit_Data();
-			desiredTemp = 0;
-			heater = 0;
+            desiredTemp = 0;
+            heater = 0;
             break;
 
         default:
@@ -130,14 +131,14 @@ void HLT_Tick(){
             if (!persist) {
                 hlt_state = FINISHED;
             }
-			else if (persist && temp < desiredTemp) {
-				hlt_state = BELOW_TEMP;
-			}
+            else if (persist && temp < desiredTemp) {
+                hlt_state = BELOW_TEMP;
+            }
             break;
 
         case FINISHED:
             //hlt_state = WAIT;
-			break;
+            break;
 
         default:
             hlt_state = INIT;
@@ -162,42 +163,42 @@ enum inputStates {input} input_state;
 
 void Input_Init()
 {
-	input_state = input;
+    input_state = input;
 }
 
 void Input_Tick()
 {
-	//actions
-	switch(input_state) {
-		case input:
-			if (~PINA & 0x02) {
-				volume = FULL; 
-			}
-			else {
-				volume = EMPTY;
-			}
-			break;
-		default:
-			break;
-	}
-	//transitions
-	switch(input_state) {
-		case input:
-			break;
-		default:
-			input_state = input;
-			break;
-	}
+    //actions
+    switch(input_state) {
+        case input:
+            if (~PINA & 0x02) {
+                volume = FULL; 
+            }
+            else {
+                volume = EMPTY;
+            }
+            break;
+        default:
+            break;
+    }
+    //transitions
+    switch(input_state) {
+        case input:
+            break;
+        default:
+            input_state = input;
+            break;
+    }
 }
 
 void Input_Task()
 {
-	Input_Init();
-	for(;;)
-	{
-		Input_Tick();
-		vTaskDelay(100);
-	}
+    Input_Init();
+    for(;;)
+    {
+        Input_Tick();
+        vTaskDelay(100);
+    }
 }
 /******************************* INPUT TASK *******************************/
 
@@ -219,7 +220,7 @@ void Output_Tick()
             }
             else {
                 PORTB = PORTB & 0xFE;
-				PORTC = 0;
+                PORTC = 0;
             }
             if (volume == FULL) {
                 PORTB = PORTB | 0x02;
@@ -227,8 +228,8 @@ void Output_Tick()
             else {
                 PORTB = PORTB & 0xFD;
             }
-			//TODO: disable heater when volume is empty         
-			PORTC = desiredTemp;
+            //TODO: disable heater when volume is empty         
+            PORTC = desiredTemp;
             break;
         default:
             break;
@@ -254,14 +255,14 @@ void Output_Task()
 }
 /******************************* OUTPUT TASK *******************************/
 void SPI_handleReceivedData(void) {
-    struct SPI_Data sendData;
+    //struct SPI_Data sendData;
 
     if (receivedData.flag == 0xFF) {
         sendData.flag = hlt_state;
         sendData.time = 0;
         sendData.temp = temp;
         sendData.vol = volume;
-        SPI_Transmit_Data(sendData);
+        //SPI_Transmit_Data(sendData);
     } else {
         persist = receivedData.flag;
         desiredTemp = receivedData.temp;
@@ -273,7 +274,7 @@ void StartSecPulse(unsigned portBASE_TYPE Priority)
 {
     xTaskCreate(HLT_Task, (signed portCHAR *)"HLT_Task", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
     xTaskCreate(Output_Task, (signed portCHAR *)"Output_Task", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
-	xTaskCreate(Input_Task, (signed portCHAR *)"Input_Task", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
+    xTaskCreate(Input_Task, (signed portCHAR *)"Input_Task", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
 }
 
 int main(void)

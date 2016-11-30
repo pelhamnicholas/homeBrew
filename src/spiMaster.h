@@ -41,6 +41,8 @@ struct SPI_Data {
 	unsigned char vol; // 0 if empty, 1 if not empty, 2 if full
 };
 
+struct SPI_Data receivedData;
+
 void SPI_MasterInit(void) {
 	// Set DDR to have MOSI, SCK, and SS as output and MISO as input
 	// Set SPCR register to enable SPO, enable master, and use SCK frequency
@@ -69,16 +71,17 @@ void SPI_handleReceivedData(struct SPI_Data);
 
 /* */
 struct SPI_Data SPI_Transmit_Data(struct SPI_Data sendData) {
+    unsigned char * rData = (unsigned char *) &receivedData;
 	unsigned char i = 0;
 	unsigned char * cData = (unsigned char *) &sendData;
 
 	SPI_Transmit(cData[0]); // ignore the first byte of incoming data
 	for (i = 1; i < sizeof(sendData); i++) {
-		cData[i-1] = SPI_Transmit(cData[i]);
+		rData[i-1] = SPI_Transmit(cData[i]);
 		_delay_ms(10);
 	}
 	/* send null byte to receive the final byte of incoming data */
-	cData[sizeof(sendData)-1] = SPI_Transmit(0x00); 
+	rData[sizeof(sendData)-1] = SPI_Transmit(0x00); 
 	
 	return sendData;
 }
