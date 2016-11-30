@@ -22,10 +22,10 @@
 #include "task.h"
 #include "croutine.h"
 
-#include "spi.h"
+#include "spiMaster.h"
 
 //extern unsigned long receivedData; // for unsigned long data
-extern struct SPI_Data receivedData; // for struct data
+struct SPI_Data receivedData; // for struct data
 unsigned char receivedFlag;
 
 /* SLAVES */
@@ -89,7 +89,7 @@ static inline void deselectSlave(unsigned char ss) {
     }
 }
 
-void SPI_handleReceivedData(void) {
+void SPI_handleReceivedData(struct SPI_Data receivedData) {
     switch(slave) {
         case HLT:
             HLT_state = receivedData.flag;
@@ -122,64 +122,84 @@ void start_HLT(unsigned char persist) {
 	if(slave != HLT) {
 		deselectSlave(slave);
 		selectSlave(HLT);
+		_delay_ms(10);
 	}
 	
-    struct SPI_Data sendData;
-    sendData.flag = persist;
-    sendData.time = 0;
-    sendData.temp = HLT_desiredTemp;
-    sendData.vol  = 0;	
-	SPI_Transmit_Data(sendData);
+    struct SPI_Data data;
+    data.flag = persist;
+    data.time = 0xF0;
+    data.temp = HLT_desiredTemp;
+    data.vol  = 0;	
+	data = SPI_Transmit_Data(data);
+	SPI_handleReceivedData(data);
 	
 	if (slave != HLT) {
 		deselectSlave(HLT);
 		selectSlave(slave);
+		_delay_ms(10);
 	}
     return;
 }
 
 void start_MT(void) {
-	deselectSlave(slave);
-	selectSlave(MT);
+	if(slave != MT) {
+		deselectSlave(slave);
+		selectSlave(MT);
+		_delay_ms(10);
+	}
 	
-    struct SPI_Data sendData;
-    sendData.flag = 0;
-    sendData.time = MT_mashTime;
-    sendData.temp = MT_desiredTemp;
-    sendData.vol  = 0;	
-	SPI_Transmit_Data(sendData);
+    struct SPI_Data data;
+    data.flag = 0;
+    data.time = MT_mashTime;
+    data.temp = MT_desiredTemp;
+    data.vol  = 0;	
+	data = SPI_Transmit_Data(data);
+	SPI_handleReceivedData(data);
 	
-	deselectSlave(MT);
-	selectSlave(slave);
+	if (slave != MT) {
+		deselectSlave(MT);
+		selectSlave(slave);
+		_delay_ms(10);
+	}
 
     return;
 }
 
 void start_BK(void) {
-	deselectSlave(slave);
-	selectSlave(BK);
+	if(slave != BK) {
+		deselectSlave(slave);
+		selectSlave(BK);
+		_delay_ms(10);
+	}
 	
-    struct SPI_Data sendData;
-    sendData.flag = 0;
-    sendData.time = BK_boilTime;
-    sendData.temp = BK_desiredTemp;
-    sendData.vol  = 0;
-	SPI_Transmit_Data(sendData);
+    struct SPI_Data data;
+    data.flag = 0;
+    data.time = BK_boilTime;
+    data.temp = BK_desiredTemp;
+    data.vol  = 0;
+	data = SPI_Transmit_Data(data);
+	SPI_handleReceivedData(data);
 	
-	deselectSlave(BK);
-	selectSlave(slave);	
+	if (slave != BK) {
+		deselectSlave(BK);
+		selectSlave(slave);
+		_delay_ms(10);
+	}
 
     return;
 }
 
 void pollSlave(void) {
-    struct SPI_Data sendData;
+    struct SPI_Data data;
 
-    sendData.flag = 0xFF;
-    sendData.time = 0;
-    sendData.temp = 0;
-    sendData.vol  = 0;
-	SPI_Transmit_Data(sendData);
+	/* assume slave has just been selected and give it time to set up */
+	_delay_ms(10);
+    data.flag = 0xFF;
+    data.time = 0;
+    data.temp = 0;
+    data.vol  = 0;
+	data = SPI_Transmit_Data(data);
+	SPI_handleReceivedData(data);
 
     return;
 }
@@ -231,6 +251,7 @@ void Polling_Tick() {
 				default:
 					break;
 			}
+			spitarget = NONE;
         default:
             break;
     }
@@ -263,8 +284,11 @@ void Polling_Tick() {
 // 	            polling_state = POLL_WAIT;
 //             }
 //             else {
+	         if (spitarget == NONE) {
+				   polling_state = START;
+			 } else {
  	             polling_state = SPI_COMMANDER;
-//             }
+             }
             break;
 		case SPI_COMMANDER:
 			polling_state = START;
@@ -520,8 +544,8 @@ void Output_Tick()
 			PORTD = 0;
 			break;
 		case output:
-			PORTC = pump_state;
-			//PORTD = vout[1]; 
+			//PORTC = pump_state;
+			PORTD = HLT_state; 
 			break;
 		default:
 			break;
