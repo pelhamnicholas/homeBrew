@@ -15,6 +15,29 @@
 #define NOT_EMPTY 1
 #define FULL      2
 
+/* Temp in Fahrenheit */
+#define MAXTEMP 300
+#define MINTEMP 0
+#define TEMP(A) (A * (MAXTEMP - MINTEMP) + MINTEMP)
+
+/* This is more accurate but requires floating point arithmetic
+   If the thermistors were available a look up table would be more appropriate
+double celcius(unsigned short ADC) { 
+    double temp;
+
+    temp = log(((1024/RawADC) - 1));
+    temp = 1 / (0.001129148 + (0.000234125 + 
+                (0.0000000876741 * Temp * Temp ))* Temp );
+    temp = temp - 273.15;
+
+    return temp;
+}
+
+double fahrenheit(unsigned short ADC) {
+    return (celcius * 9.0)/ 5.0 + 32.0; 
+}
+*/
+
 struct SPI_Data {
 	unsigned char flag;
 	unsigned short temp;
