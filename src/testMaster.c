@@ -37,9 +37,10 @@ unsigned short MT_temp = 0;              //current temperature
 unsigned short MT_desiredTemp = 0x00F8;  //desired HLT temperature - 0x00F8
 
 unsigned short BK_maxVol = 1;            //maxvolume of BK
-unsigned short BK_boilTime = 0;          //time to keep at boil
+unsigned short BK_boilTime = 3000;          //time to keep at boil
 unsigned short BK_temp = 0;              //current temperature
 unsigned short BK_desiredTemp = 0x00F8;  //desired BK temperature - 0x00F8
+unsigned short BK_desiredTempLow = 0x0028;	 //desired low BK temperature 0x0028
 
 void SPI_handleReceivedData(void) {
 	return;
@@ -106,7 +107,7 @@ void TMaster_Tick()
 				sendData.flag = 0;
 				sendData.temp = BK_desiredTemp;
 				sendData.time = BK_boilTime;
-				sendData.vol = BK_maxVol;
+				sendData.vol = BK_desiredTempLow;
 				SPI_Transmit_Data(sendData);
 
                 PORTB = (PORTB & 0xFB) | 0x04;
@@ -163,3 +164,5 @@ int main(void)
     
     return 0;
 }
+
+

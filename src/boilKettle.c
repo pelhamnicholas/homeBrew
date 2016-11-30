@@ -30,12 +30,14 @@
 extern struct SPI_Data receivedData;
 
 /******************************* BK TASK *******************************/
-unsigned short vol= 0;                //volume of water in BK
+unsigned short volume = 0;                //volume of water in BK
 unsigned short maxVol = 0;            //maxvolume of BK
-unsigned short temp = 0;              //current temperature
-unsigned short desiredtemp = 0x00F8;  //desired BK temperature - 0x00F8
+unsigned short BKtemp = 0;              //current temperature
+unsigned short desiredTempHigh = 0;  //desired BK temperature - 0x00F8
+unsigned short desiredTempLow = 0;
 unsigned short boilTime = 0;
 unsigned char heater = 0;             //heater flag: 0 = off, 1 = on
+unsigned char BK_PERIOD = 100;
 
 /* state order is standardized for SPI communication protocols */
 enum BKState { INIT, WAIT, FILL, BELOW_TEMP, AT_TEMP, COOL, FINISHED } BK_state;
@@ -50,29 +52,29 @@ void BK_Tick(){
         case INIT:
             heater = 0;
             maxVol = 0;
-            desiredTemp = 0;
+            desiredTempHigh = 0;
+			desiredTempLow = 0;
             boilTime = 0;
             break;
 
         case WAIT:
-            temp = ADC_read(0);
+            BKtemp = ADC_read(0);
             heater = 0;
             // TODO: fill in sleep mode and conditional
-            set_sleep_mode(SLEEP_MODE_PWR_SAVE);
-            cli();
-            //  if (...) {
-                sleep_enable();
-                sei();
-                sleep_cpu();
-                sleep_disable();
-            // }
-            sei();
+//            set_sleep_mode(SLEEP_MODE_PWR_SAVE);
+//            cli();
+//            //  if (...) {
+//                sleep_enable();
+//                sei();
+//                sleep_cpu();
+//                sleep_disable();
+//            // }
+//            sei();
             break;
 
         case FILL:
-            temp = ADC_read(0);
+            BKtemp = ADC_read(0);
             heater = 0;
-            vol++;
             break;
 
         case BELOW_TEMP:
@@ -82,20 +84,22 @@ void BK_Tick(){
             break;
 
         case AT_TEMP:
-            temp = ADC_read(0);
+            BKtemp = ADC_read(0);
             heater = 0;
             boilTime = boilTime - BK_PERIOD;
             break;
 
         case COOL:
-            temp = ADC_read(0);
+            BKtemp = ADC_read(0);
             heater = 0;
             /* send signal to cool */
             break; 
            
         case FINISHED:
-            temp = ADC_read(0);
+            BKtemp = ADC_read(0);
             heater = 0;
+			PORTC = 0;
+			PORTD = 0x80;
             /* send signal finished */
             break;
 
@@ -111,20 +115,23 @@ void BK_Tick(){
             break;
 
         case WAIT:
-            if (desiredTemp > 0 $$ boilTime > 0) {
+            if (desiredTempHigh > 0 && boilTime > 0) {
                 BK_state = FILL; 
             }
             break;
 
         case FILL:
-            if (vol >= maxVol) {
-                BK_state = HEAT;
+            if (volume == FULL) {
+                BK_state = AT_TEMP;
             } 
             break;
 
         case BELOW_TEMP:
             if (boilTime <= 0) {
                 BK_state = COOL;
+            } 
+			else if (BKtemp >= desiredTempHigh) {
+				BK_state = AT_TEMP;
             }
             break;
 
@@ -132,21 +139,24 @@ void BK_Tick(){
             if (boilTime <= 0) {
                 BK_state = COOL;
             }
+			else if (BKtemp < desiredTempHigh) {
+				BK_state = BELOW_TEMP;
+			} 
             break;
 
         case COOL:
-            if (temp <= desiredTemp) {
-                BK_state = FINISH;
+            if (BKtemp <= desiredTempLow) {
+                BK_state = FINISHED;
             }
             break;
             
         case FINISHED:
             /* stay in finish until signaled? */
-            BK_state = WAIT;
+            //BK_state = WAIT;
             break;
 
         default:
-            BK_state = init;
+            BK_state = INIT;
             break;
     }
 }
@@ -160,27 +170,133 @@ void BK_Task()
         vTaskDelay(100);
     }
 }
+/******************************* BK TASK *******************************/
+/******************************* INPUT TASK *******************************/
+enum inputStates {input} input_state;
 
-void handleReceivedData(void) {
+void Input_Init()
+{
+	input_state = input;
+}
+
+void Input_Tick()
+{
+	//actions
+	switch(input_state) {
+		case input:
+			if (~PINA & 0x02) {
+				volume = FULL; 
+			}
+			else {
+				volume = EMPTY;
+			}
+			break;
+		default:
+			break;
+	}
+	//transitions
+	switch(input_state) {
+		case input:
+			break;
+		default:
+			input_state = input;
+			break;
+	}
+}
+
+void Input_Task()
+{
+	Input_Init();
+	for(;;)
+	{
+		Input_Tick();
+		vTaskDelay(BK_PERIOD);
+	}
+}
+/******************************* INPUT TASK *******************************/
+
+/******************************* OUTPUT TASK *******************************/
+enum outputStates {output_init, output} output_state;
+
+void Output_Init()
+{
+    output_state = output_init;
+}
+
+void Output_Tick()
+{
+    //actions
+    switch (output_state){
+		case output_init:
+			PORTB = 0x00;
+			break;
+        case output:
+            if (volume == FULL) {
+                PORTB = PORTB | 0x02;
+            }
+            else {
+                PORTB = PORTB & 0xFD;
+            }
+            if (heater == 1 && volume == FULL) {
+                PORTB = PORTB | 0x01;
+            }
+            else {
+                PORTB = PORTB & 0xFE;
+				PORTC = 0;
+            }
+			//TODO: disable heater when volume is empty         
+			PORTC = BKtemp;   
+			//PORTD = (BKtemp & 0x0300) >> 2;
+            break;
+        default:
+            break;
+    }
+    //transitions
+    switch (output_state) {
+		case output_init:
+			output_state = output;
+			break; 
+        case output:
+            break;
+        default:
+            output_state = output;
+            break; 
+    } 
+}
+
+void Output_Task()
+{
+    Output_Init();
+    for(;;)
+    {
+        Output_Tick();
+        vTaskDelay(100);
+    }
+}
+/******************************* OUTPUT TASK *******************************/
+void SPI_handleReceivedData(void) {
     struct SPI_Data sendData;
 
     if (receivedData.flag == 0xFF) {
         /* pinged for data */
         sendData.flag = BK_state;
         sendData.time = boilTime;
-        sendData.temp = temp;
-        sendData.vol = vol;
+        sendData.temp = BKtemp;
+        sendData.vol = volume;
         SPI_Transmit_Data(sendData);
     } else {
-        mashTime = receivedData.time;
-        desiredTemp = receivedData.temp;
+        boilTime = receivedData.time;
+        desiredTempHigh = receivedData.temp;
+		desiredTempLow = receivedData.vol;
+		
     }
 }
 
 void StartSecPulse(unsigned portBASE_TYPE Priority)
 {
     xTaskCreate(BK_Task, (signed portCHAR *)"BK_Task", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
-    xTaskCreate(TESTtask, (signed portCHAR *)"TEST_Task", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
+	xTaskCreate(Output_Task, (signed portCHAR *)"Output_Task", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
+	xTaskCreate(Input_Task, (signed portCHAR *)"Input_Task", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
 }
 
 int main(void)
@@ -191,7 +307,7 @@ int main(void)
     DDRA = 0x00; PORTA = 0xFF;
     DDRB = 0xFF; PORTB = 0x00;
     DDRC = 0xFF; PORTC = 0x00;
-    DDRD = 0x00; PORTD = 0xFF;
+    DDRD = 0xFF; PORTD = 0x00;
     //Start Tasks
     StartSecPulse(1);
     //init ADC
