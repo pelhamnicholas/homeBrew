@@ -29,6 +29,7 @@
 
 //extern unsigned long receivedData; // for long data
 extern struct SPI_Data receivedData; // for struct data
+unsigned char volume; 
 
 signed short mashTime = 0;
 unsigned short temp = 0;             //current temperature
@@ -42,47 +43,37 @@ signed char rotationcounter = 0;     //stepper motor rotation flag
     
 /******************************* FILL ************************************/
 
-enum fillState { EMPTY, NOT_EMPTY, FULL } fill_state;
+enum fillState { checkVol } fill_state;
 
 void fill_init() {
-    fill_state = EMPTY;
+    fill_state = checkVol;
 }
 
 void fill_tick() {
     switch(fill_state) {
-        case EMPTY:
+        case checkVol:
             if (~PINA & 0x02) {
-                fill_state = NOT_EMPTY;
+                volume = NOT_EMPTY;
+				if (~PINA & 0x04) {
+					volume = FULL;
+				}
             }
-            break;
-        case NOT_EMPTY:
-            if (!(~PINA & 0x02)) {
-                fill_state = EMPTY;
-            } else if (~PINA & 0x04) {
-                fill_state = FULL;
+            else if (!(~PINA & 0x02)) {
+                volume = EMPTY;
+			}
+            else if (!(~PINA & 0x04)) {
+                volume = NOT_EMPTY;
             }
-            break;
-        case FULL:
-            if (!(~PINA & 0x04)) {
-                fill_state = NOT_EMPTY;
-            }
+            break; 
+        default:
             break;
     }
 
     switch(fill_state) {
-        case EMPTY:
-            /* SPI send state */
-            PORTB = PORTB & 0xFC;
-            break;
-        case NOT_EMPTY:
-            /* SPI send state */
-            PORTB = (PORTB & 0xF9) | 0x02;
-            break;
-        case FULL:
-            /* SPI send state */
-            PORTB = (PORTB & 0xF9) | 0x04;
+        case checkVol:
             break;
         default:
+            fill_state = checkVol; 
             break;
     }
 }
@@ -146,7 +137,7 @@ void stir_task() {
 
 const unsigned char MASH_TUN_PERIOD = 100;
 
-enum mashTunState { INIT, WAIT, FILL, BELOW_TEMP, AT_TEMP, COOL, FINISHED } mashTun_state;
+enum mashTunState { WAIT, FILL, BELOW_TEMP, AT_TEMP, COOL, FINISHED } mashTun_state;
 
 void mashTun_init() {
     mashTun_state = WAIT;
@@ -157,6 +148,7 @@ void mashTun_tick() {
         case WAIT:
             temp = ADC_read(0);
 			//PORTB = PORTB & 0xFE;
+			/*
             set_sleep_mode(SLEEP_MODE_PWR_SAVE);
             cli();
             // if ( ... ) {
@@ -166,26 +158,27 @@ void mashTun_tick() {
                 sleep_disable();
             // }
             sei();
+			*/
             break;
         case FILL:
             temp = ADC_read(0);
-			PORTB = PORTB & 0xFE;
+			//portb = portb & 0xfe;
             break;
         case AT_TEMP:
             temp = ADC_read(0);
-            /* SPI transfer don't heat water */
-            PORTB = PORTB & 0xFE;
+            /* spi transfer don't heat water */
+            //portb = portb & 0xfe;
             mashTime = mashTime - MASH_TUN_PERIOD;
             break;
         case BELOW_TEMP:
             temp = ADC_read(0);
-            /* SPI transfer heat water */
-            PORTB = PORTB | 0x01;
+            /* spi transfer heat water */
+            //portb = portb | 0x01;
             mashTime = mashTime - MASH_TUN_PERIOD;
             break;
         case FINISHED:
-            /* Wait for master to finish sparge */
-            PORTB = PORTB & 0xFE;
+            /* wait for master to finish sparge */
+            //portb = portb & 0xfe;
             break;
         default:
             break;
@@ -375,10 +368,12 @@ void TEST_Tick()
 
         case get_input:
             //PORTD = (adctemp & 0x0300) >> 2;
+            /*
             if ( (~(PINA) & 0x08)) {
                 mashTime = 10000;
                 desiredTemp = 0x00FD;
             }
+            */
             PORTD = (char) (desiredTemp & 0x00FF);
             break; 
 
@@ -412,6 +407,76 @@ void TESTtask()
 
 /******************************* TEST TASK *******************************/
 
+
+/******************************* OUTPUT TASK *******************************/
+enum outputStates {output_Init, output} output_state;
+
+void Output_Init()
+{
+    output_state = output_Init;
+}
+
+void Output_Tick()
+{
+    //actions
+    switch(output_state) {
+        case output_Init:
+            PORTB = PORTB & 0x00; 
+            break;
+
+        case output:
+            if (volume == EMPTY) {
+                PORTB = PORTB & 0xFC;
+            }
+            else if (volume == NOT_EMPTY) {
+                PORTB = (PORTB & 0xF9) | 0x02;
+            }
+            else if (volume == FULL) {
+                PORTB = (PORTB & 0xF9) | 0x04;
+            }
+            if (mashTun_state == FILL) {
+                PORTB = PORTB & 0xFE;
+            }
+            else if (mashTun_state == AT_TEMP) {
+                PORTB = PORTB & 0xFE;
+            }
+            else if (mashTun_state == BELOW_TEMP) {
+                PORTB = PORTB | 0x01;
+            }
+            else if (mashTun_state == FINISHED) {
+                PORTB = PORTB & 0xFE;
+            }
+            break;
+
+        default:
+            break;
+    }
+    //transitions
+    switch(output_state) {
+        case output_Init:
+            output_state = output;
+            break;
+
+        case output:
+            break;
+
+        default:
+            output_state = output;
+            break;
+    }
+}
+
+void OutputTask()
+{
+    Output_Init();
+    for(;;)
+    {
+        Output_Tick();
+        vTaskDelay(100);
+    }
+}
+
+/******************************* OUTPUT TASK *******************************/
 void SPI_handleReceivedData(void) {
     struct SPI_Data sendData;
 
@@ -420,7 +485,7 @@ void SPI_handleReceivedData(void) {
         sendData.flag = mashTun_state;
         sendData.time = mashTime;
         sendData.temp = temp;
-        sendData.vol = 0;
+        sendData.vol = volume;
         SPI_Transmit_Data(sendData);
     } else {
         mashTime = receivedData.time;
@@ -435,6 +500,7 @@ void StartSecPulse(unsigned portBASE_TYPE Priority)
     xTaskCreate(mashTun_task, (signed portCHAR *)"mashTun_Task", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
     xTaskCreate(TESTtask, (signed portCHAR *)"TEST_Task", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
     xTaskCreate(MotorTask, (signed portCHAR *)"MotorTask", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
+    xTaskCreate(OutputTask, (signed portCHAR *)"OutputTask", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
 }
 
 int main(void)
