@@ -97,17 +97,16 @@ void stir_init() {
 void stir_tick() {
     switch(stir_state) {
         case OFF:
-            if (fill_state == NOT_EMPTY) {
+            if (volume == NOT_EMPTY) {
                 stir_state = ON;
             }
             break;
         case ON:
-            if (fill_state == EMPTY) {
+            if (volume == EMPTY) {
                 stir_state = OFF;
             }
             break;
         default:
-            fill_state = OFF;
             break;
     }
 
@@ -148,17 +147,15 @@ void mashTun_tick() {
         case WAIT:
             temp = ADC_read(0);
 			//PORTB = PORTB & 0xFE;
-			/*
-            set_sleep_mode(SLEEP_MODE_PWR_SAVE);
-            cli();
-            // if ( ... ) {
-                sleep_enable();
-                sei();
-                sleep_cpu();
-                sleep_disable();
-            // }
-            sei();
-			*/
+//             set_sleep_mode(SLEEP_MODE_EXT_STANDBY);
+//             cli();
+//             // if ( ... ) {
+//                 sleep_enable();
+//                 sei();
+//                 sleep_cpu();
+//                 sleep_disable();
+//             // }
+//             sei();
             break;
         case FILL:
             temp = ADC_read(0);
@@ -191,7 +188,7 @@ void mashTun_tick() {
             }
             break;
         case FILL:
-            if (fill_state == FULL) {
+            if (volume == FULL) {
                 mashTun_state = AT_TEMP;
             }
             break;
@@ -368,12 +365,6 @@ void TEST_Tick()
 
         case get_input:
             //PORTD = (adctemp & 0x0300) >> 2;
-            /*
-            if ( (~(PINA) & 0x08)) {
-                mashTime = 10000;
-                desiredTemp = 0x00FD;
-            }
-            */
             PORTD = (char) (desiredTemp & 0x00FF);
             break; 
 
@@ -487,7 +478,7 @@ void SPI_handleReceivedData(void) {
         sendData.temp = temp;
         sendData.vol = volume;
         SPI_Transmit_Data(sendData);
-    } else {
+        } else {
         mashTime = receivedData.time;
         desiredTemp = receivedData.temp;
     }
