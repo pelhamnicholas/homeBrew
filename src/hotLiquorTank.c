@@ -42,38 +42,37 @@ unsigned char heater = 0;             //heater flag: 0 = off, 1 = on
 enum HLTState { INIT, WAIT, FILL, BELOW_TEMP, AT_TEMP, COOL, FINISHED } hlt_state;
 
 void HLT_Init(){
-    hlt_state = init;
+    hlt_state = INIT;
 }
 
 void HLT_Tick(){
     //Actions
     switch(hlt_state){
         case INIT:
-            volume = 0;
+            volume = EMPTY;
             heater = 0;
-            desiredTemp = 0;
-            hlt_state = wait;
+            desiredTemp = 0x00;
+            hlt_state = WAIT;
             break;
 
         case WAIT:
             temp = ADC_read(0);
             heater = 0;
             // TODO: fill in sleep mode and conditional
-            set_sleep_mode(SLEEP_MODE_PWR_SAVE);
-            cli();
-            // if (...) {
-                sleep_enable();
-                sei();
-                sleep_cpu();
-                sleep_disable();
-            // }
-            sei();
+//             set_sleep_mode(SLEEP_MODE_PWR_SAVE);
+//             cli();
+//             // if (...) {
+//                 sleep_enable();
+//                 sei();
+//                 sleep_cpu();
+//                 sleep_disable();
+//             // }
+//             sei();
             break;
 
         case FILL:
             temp = ADC_read(0);
             heater = 0;
-            volume++;
             break;
 
         case BELOW_TEMP:
@@ -93,6 +92,7 @@ void HLT_Tick(){
 //            sendData.temp = temp;
 //            sendData.vol = volume;
 //            SPI_Transmit_Data();
+			desiredTemp = 0;
             break;
 
         default:
@@ -111,14 +111,14 @@ void HLT_Tick(){
             break;
 
         case FILL:
-            if (volume >= maxVol) {
+            if (volume == FULL) {
                 heater = 0;
                 hlt_state = BELOW_TEMP;
             } 
             break;
 
         case BELOW_TEMP:
-            if (!persist && temp_reached) {
+            if (!persist && temp >= desiredTemp) {
                 hlt_state = FINISHED;
             } else if (temp >= desiredTemp) {
                 hlt_state = AT_TEMP;
@@ -129,10 +129,14 @@ void HLT_Tick(){
             if (!persist) {
                 hlt_state = FINISHED;
             }
+			else if (persist && temp < desiredTemp) {
+				hlt_state = BELOW_TEMP;
+			}
             break;
 
         case FINISHED:
             hlt_state = WAIT;
+			break;
 
         default:
             hlt_state = INIT;
@@ -152,25 +156,123 @@ void HLT_Task()
 
 /******************************* HLT TASK *******************************/
 
-void handleReceivedData(void) {
+/******************************* INPUT TASK *******************************/
+enum inputStates {input} input_state;
+
+void Input_Init()
+{
+	input_state = input;
+}
+
+void Input_Tick()
+{
+	//actions
+	switch(input_state) {
+		case input:
+			if (~PINA & 0x02) {
+				volume = FULL; 
+			}
+			else {
+				volume = EMPTY;
+			}
+			break;
+		default:
+			break;
+	}
+	//transitions
+	switch(input_state) {
+		case input:
+			break;
+		default:
+			input_state = input;
+			break;
+	}
+}
+
+void Input_Task()
+{
+	Input_Init();
+	for(;;)
+	{
+		Input_Tick();
+		vTaskDelay(100);
+	}
+}
+/******************************* INPUT TASK *******************************/
+
+/******************************* OUTPUT TASK *******************************/
+enum outputStates {output} output_state;
+
+void Output_Init()
+{
+    output_state = output;
+}
+
+void Output_Tick()
+{
+    //actions
+    switch (output_state){
+        case output:
+            if (heater == 1 && volume == FULL) {
+                PORTB = PORTB | 0x01;
+            }
+            else {
+                PORTB = PORTB & 0xFE;
+				PORTC = 0;
+            }
+            if (volume == FULL) {
+                PORTB = PORTB | 0x02;
+            }
+            else {
+                PORTB = PORTB & 0xFD;
+            }
+			//TODO: disable heater when volume is empty         
+			PORTC = desiredTemp;   
+            break;
+        default:
+            break;
+    }
+    //transitions
+    switch (output_state) {
+        case output:
+            break;
+        default:
+            output_state = output;
+            break; 
+    } 
+}
+
+void Output_Task()
+{
+    Output_Init();
+    for(;;)
+    {
+        Output_Tick();
+        vTaskDelay(100);
+    }
+}
+/******************************* OUTPUT TASK *******************************/
+void SPI_handleReceivedData(void) {
     struct SPI_Data sendData;
 
     if (receivedData.flag == 0xFF) {
-        sendData.flag = HLT_state;
+        sendData.flag = hlt_state;
         sendData.time = 0;
         sendData.temp = temp;
         sendData.vol = volume;
         SPI_Transmit_Data(sendData);
     } else {
-        persist = sendData.flag;
-        desiredTemp = sendData.temp;
-        maxVol = sendData.vol;
+        persist = receivedData.flag;
+        desiredTemp = receivedData.temp;
+        maxVol = receivedData.vol;
     }
 }
 
 void StartSecPulse(unsigned portBASE_TYPE Priority)
 {
     xTaskCreate(HLT_Task, (signed portCHAR *)"HLT_Task", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
+    xTaskCreate(Output_Task, (signed portCHAR *)"Output_Task", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
+	xTaskCreate(Input_Task, (signed portCHAR *)"Input_Task", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
 }
 
 int main(void)
