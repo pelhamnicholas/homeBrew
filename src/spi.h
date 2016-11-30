@@ -11,11 +11,15 @@
 #define F_CPU 1000000UL
 #include <util/delay.h>
 
+#define EMPTY     0
+#define NOT_EMPTY 1
+#define FULL      2
+
 struct SPI_Data {
 	unsigned char flag;
 	unsigned short temp;
 	signed short time;
-	unsigned short vol;
+	unsigned char vol; // 0 if empty, 1 if not empty, 2 if full
 } receivedData, tmpData;
 unsigned long dataSize = sizeof(struct SPI_Data);
 
