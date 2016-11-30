@@ -93,6 +93,7 @@ void HLT_Tick(){
 //            sendData.vol = volume;
 //            SPI_Transmit_Data();
 			desiredTemp = 0;
+			heater = 0;
             break;
 
         default:
@@ -135,7 +136,7 @@ void HLT_Tick(){
             break;
 
         case FINISHED:
-            hlt_state = WAIT;
+            //hlt_state = WAIT;
 			break;
 
         default:
@@ -227,7 +228,7 @@ void Output_Tick()
                 PORTB = PORTB & 0xFD;
             }
 			//TODO: disable heater when volume is empty         
-			PORTC = desiredTemp;   
+			PORTC = desiredTemp;
             break;
         default:
             break;
