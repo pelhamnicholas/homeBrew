@@ -26,9 +26,9 @@ struct SPI_Data receivedData;
 struct SPI_Data tmpData;
 struct SPI_Data sendData;
 
-unsigned char * pData = (unsigned char *) &tmpData;
-unsigned char * pSendData = (unsigned char *) &sendData;
-unsigned char byte = 0;
+volatile unsigned char * pData = (unsigned char *) &tmpData;
+volatile unsigned char * pSendData = (unsigned char *) &sendData;
+volatile unsigned char byte = 0;
 
 void SPI_SlaveInit(void)
 {
