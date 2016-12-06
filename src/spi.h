@@ -21,10 +21,10 @@ struct SPI_Data {
 	signed short time;
 	unsigned char vol; // 0 if empty, 1 if not empty, 2 if full
 	unsigned char unused; // stores the last byte of data sent by the master
-}; 
-struct SPI_Data receivedData;
-struct SPI_Data tmpData;
-struct SPI_Data sendData;
+};
+volatile struct SPI_Data receivedData;
+volatile struct SPI_Data tmpData;
+volatile struct SPI_Data sendData;
 
 volatile unsigned char * pData = (unsigned char *) &tmpData;
 volatile unsigned char * pSendData = (unsigned char *) &sendData;
@@ -32,23 +32,23 @@ volatile unsigned char byte = 0;
 
 void SPI_SlaveInit(void)
 {
-    SPI_DDR = (SPI_DDR & 0x0F) | (1<<MISO);
+	SPI_DDR = (SPI_DDR & 0x0F) | (1<<MISO);
 	SPI_PORT = (SPI_PORT & 0x0F) | ~(1<<MISO);
-    SPCR = (1<<SPIE)|(1<<SPE) ;
-    sei();
+	SPCR = (1<<SPIE)|(1<<SPE) ;
+	sei();
 }
 
 unsigned char SPI_Receive(void)
 {
-    while(!(SPSR & (1 << SPIF)));
-    return SPDR;
+	while(!(SPSR & (1 << SPIF)));
+	return SPDR;
 }
 
 void SPI_handleReceivedData(void);
 
 ISR(SPI_STC_vect)
 {
-    pData[byte] = SPDR;
+	pData[byte] = SPDR;
 	SPDR = pSendData[byte];
 	byte = (byte + 1) % sizeof(struct SPI_Data); // for struct data
 	if (byte == 0) {

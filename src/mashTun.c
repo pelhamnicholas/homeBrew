@@ -28,7 +28,7 @@
 #include "spi.h"
 
 //extern unsigned long receivedData; // for long data
-extern struct SPI_Data receivedData; // for struct data
+extern volatile struct SPI_Data receivedData; // for struct data
 unsigned char volume; 
 
 signed short mashTime = 0;
@@ -175,7 +175,7 @@ void mashTun_tick() {
             break;
         case FINISHED:
             /* wait for master to finish sparge */
-            //portb = portb & 0xfe;
+            desiredTemp = 0;
             break;
         default:
             break;
@@ -208,7 +208,6 @@ void mashTun_tick() {
             break;
         case FINISHED:
             /* wait for ping to move from finished? */
-            desiredTemp = 0;
             mashTun_state = WAIT;
             break;
         default:
@@ -469,7 +468,7 @@ void OutputTask()
 
 /******************************* OUTPUT TASK *******************************/
 void SPI_handleReceivedData(void) {
-    struct SPI_Data sendData;
+    //struct SPI_Data sendData;
 
     if (receivedData.flag == 0xFF) {
         /* pinged for data */

@@ -27,7 +27,7 @@
 #include "adc.h"
 #include "spi.h"
 
-extern struct SPI_Data receivedData;
+extern volatile struct SPI_Data receivedData;
 
 /******************************* BK TASK *******************************/
 unsigned short volume = 0;                //volume of water in BK
@@ -35,6 +35,7 @@ unsigned short maxVol = 0;            //maxvolume of BK
 unsigned short BKtemp = 0;              //current temperature
 unsigned short desiredTempHigh = 0;  //desired BK temperature - 0x00F8
 unsigned short desiredTempLow = 0;
+unsigned short displayTemp = 0;
 unsigned short boilTime = 0;
 unsigned char heater = 0;             //heater flag: 0 = off, 1 = on
 unsigned char BK_PERIOD = 100;
@@ -112,6 +113,7 @@ void BK_Tick(){
     switch(BK_state){
         case INIT: 
             BK_state = WAIT; 
+			desiredTempHigh = 0;
             break;
 
         case WAIT:
@@ -130,7 +132,7 @@ void BK_Tick(){
             if (boilTime <= 0) {
                 BK_state = COOL;
             } 
-            else if (BKtemp >= desiredTempHigh) {
+            else if (BKtemp >= desiredTempHigh || boilTime <= 0) {
                 BK_state = AT_TEMP;
             }
             break;
@@ -139,7 +141,7 @@ void BK_Tick(){
             if (boilTime <= 0) {
                 BK_state = COOL;
             }
-            else if (BKtemp < desiredTempHigh) {
+            else if (BKtemp < desiredTempHigh || boilTime <= 0) {
                 BK_state = BELOW_TEMP;
             } 
             break;
@@ -151,6 +153,9 @@ void BK_Tick(){
             break;
             
         case FINISHED:
+			if (volume == EMPTY) {
+				BK_state = WAIT;
+			}
             /* stay in finish until signaled? */
             //BK_state = WAIT;
             break;
@@ -244,9 +249,10 @@ void Output_Tick()
                 PORTB = PORTB & 0xFE;
                 PORTC = 0;
             }
-            //TODO: disable heater when volume is empty         
-            PORTC = desiredTempHigh;   
-            //PORTD = (BKtemp & 0x0300) >> 2;
+            //TODO: disable heater when volume is empty   
+			displayTemp = (BK_state == COOL) ? desiredTempLow : desiredTempHigh;
+            PORTC = displayTemp;   
+            PORTD = (displayTemp & 0x0300) >> 2;
             break;
         default:
             break;
@@ -275,7 +281,7 @@ void Output_Task()
 }
 /******************************* OUTPUT TASK *******************************/
 void SPI_handleReceivedData(void) {
-    struct SPI_Data sendData;
+    //struct SPI_Data sendData;
 
     if (receivedData.flag == 0xFF) {
         /* pinged for data */

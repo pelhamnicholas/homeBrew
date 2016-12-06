@@ -28,8 +28,8 @@
 #include "spi.h"
 
 //extern unsigned long receivedData;
-extern struct SPI_Data receivedData;
-extern struct SPI_Data sendData;
+extern volatile struct SPI_Data receivedData;
+extern volatile struct SPI_Data sendData;
 
 /******************************* HLT TASK *******************************/
 unsigned short volume = 0;            //volume of water in HLT
@@ -87,12 +87,6 @@ void HLT_Tick(){
             break;
 
         case FINISHED:
-            /* waits to be pinged for state value?*/
-//            sendData.flag = HLT_state;
-//            sendData.time = 0;
-//            sendData.temp = temp;
-//            sendData.vol = volume;
-//            SPI_Transmit_Data();
             desiredTemp = 0;
             heater = 0;
             break;
@@ -137,7 +131,9 @@ void HLT_Tick(){
             break;
 
         case FINISHED:
-            //hlt_state = WAIT;
+			if (volume == EMPTY) {
+				hlt_state = WAIT;
+			}
             break;
 
         default:
@@ -228,6 +224,11 @@ void Output_Tick()
             else {
                 PORTB = PORTB & 0xFD;
             }
+			if (hlt_state == FILL) {
+				PORTB = PORTB | 0x04;
+			} else {
+				PORTB = PORTB & 0xFB;
+			}
             //TODO: disable heater when volume is empty         
             PORTC = desiredTemp;
             break;
