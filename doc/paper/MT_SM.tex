@@ -13,10 +13,10 @@
 
 \begin{tikzpicture}[->, >=stealth', shorten >=1pt, auto, node distance=2.8cm,
                     semithick, draw=blue]
-  \tikzstyle{every state}=[fill=yellow, draw=blue, text=blue]
+  \tikzstyle{every state}=[fill=yellow, draw=black, text=black]
 
   \node[initial,state] (A) [fill=lightgray, draw=black, text=black] {$wait$};
-  \node[state]         (B) [right =3.5cm of A]                      {$Fill$};
+  \node[state]         (B) [right =3.25cm of A]                      {$Fill$};
   \node[state]         (C) [below =1.5cm of B]                      {$BelowTemp$};
   \node[state]         (D) [below =2cm of C]                        {$AtTemp$};
   \node[state]         (E) [below =4cm of A]                        {$Finished$};
@@ -24,12 +24,13 @@
   \path 
         (A) edge [draw=blue]                   node [above]{\texttt{mashTime > 0}} 
                                                node [below]{\texttt{desiredTemp > 0}}(B)
-        (B) edge [draw=blue]                   node [below, pos=0.4]{\texttt{time $>$ 0 \&\& full~~~}}(C)
+        (B) edge [draw=blue]                   node [below, pos=0.4]{\texttt{~~~~~~~time $>$ 0 \&\& full}}(C)
+        (B) edge [draw=blue]                   node [sloped, above]{\texttt{time $<=$ 0 \&\& full~~~}}(E)
         (C) edge [draw=blue, bend left]        node [below, pos=0.2]{\texttt{temp $\geq$ desiredTemp~~~}} (D)
         (D) edge [draw=blue, bend left]        node [above, pos=0.2]{\texttt{temp $<$ desiredTemp~~~~}} (C)
         (C) edge [draw=blue]                   node [sloped, above]{\texttt{time $\leq$ 0}} (E)
         (D) edge [draw=blue]                   node [sloped, below]{\texttt{time $\leq$ 0}} (E)
-        (E) edge [draw=blue]                   node [left]{\texttt{1}} (A);
+        (E) edge [draw=blue]                   node [left]{\texttt{empty}} (A);
 \end{tikzpicture}
 
 \end{document}

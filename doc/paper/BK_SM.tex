@@ -13,10 +13,10 @@
 
 \begin{tikzpicture}[->, >=stealth', shorten >=1pt, auto, node distance=2.8cm,
                     semithick, draw=blue]
-  \tikzstyle{every state}=[fill=yellow, draw=blue, text=blue]
+  \tikzstyle{every state}=[fill=yellow, draw=black, text=black]
 
   \node[initial,state] (A) [fill=lightgray, draw=black, text=black] {$wait$};
-  \node[state]         (B) [right =3.85cm of A]                     {$Fill$};
+  \node[state]         (B) [right =3.25cm of A]                      {$Fill$};
   \node[state]         (C) [below =1.785cm of B]                    {$BelowTemp$};
   \node[state]         (D) [below =1.785cm of C]                    {$AtTemp$};
   \node[state]         (E) [below =4cm of A]                        {$Cool$};
@@ -31,7 +31,7 @@
         (C) edge [draw=blue]                   node [sloped, below, pos=0.45]{\texttt{time $\leq$ 0}} (E)
         (D) edge [draw=blue]                   node [sloped, below]{\texttt{time $\leq$ 0}} (E)
         (E) edge [draw=blue]                   node [above, pos=0.3]{\texttt{temp $\leq$ desiredTemp}} (F)
-        (F) edge [draw=blue]                   node {\texttt{1}} (A);
+        (F) edge [draw=blue]                   node {\texttt{empty}} (A);
 \end{tikzpicture}
 
 \end{document}
